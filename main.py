@@ -1,36 +1,30 @@
-"""Neighbour-Waker 3000 catalogue entry.
-
-Reads the studio product shot (gadget.png) from this repository and writes
-it as a 1024x1024 PNG to the output directory, unchanged in content.
-"""
-
+#!/usr/bin/env python3
+"""The Neighbour-Waker 3000: fit the catalogue shot into a 1024x1024 entry."""
 import os
 from pathlib import Path
 
 from PIL import Image
 
-SIZE = 1024
+HERE = Path(__file__).resolve().parent
+OUT_DIR = Path(os.environ.get("MAKEFUN_OUTPUT_DIR", "/output"))
 
 
 def main() -> None:
-    here = Path(__file__).resolve().parent
-    src = here / "gadget.png"
-    out_dir = Path(os.environ.get("MAKEFUN_OUTPUT_DIR", "/output"))
-    out_dir.mkdir(parents=True, exist_ok=True)
-    out_path = out_dir / "entry.png"
-
-    with Image.open(src) as im:
-        im = im.convert("RGB")
-        # Fit inside the 1024x1024 frame, keep aspect, centre on the shot's
-        # own backdrop colour (sampled from the top-left corner) so the
-        # padding blends with the studio background instead of a hard white.
-        bg = im.getpixel((0, 0))
-        im.thumbnail((SIZE, SIZE), Image.LANCZOS)
-        canvas = Image.new("RGB", (SIZE, SIZE), bg)
-        x = (SIZE - im.width) // 2
-        y = (SIZE - im.height) // 2
-        canvas.paste(im, (x, y))
-        canvas.save(out_path, format="PNG", optimize=True)
+    shot = Image.open(HERE / "gadget.png").convert("RGB")
+    pad = shot.getpixel((0, 0))
+    canvas = Image.new("RGB", (1024, 1024), pad)
+    shot.thumbnail((1024, 1024), Image.LANCZOS)
+    x = (1024 - shot.width) // 2
+    y = (1024 - shot.height) // 2
+    canvas.paste(shot, (x, y))
+    OUT_DIR.mkdir(parents=True, exist_ok=True)
+    out = OUT_DIR / "entry.png"
+    canvas.save(out, format="PNG", optimize=True)
+    # The gate caps entry.png at 1 MiB: fall back to JPEG if PNG runs over.
+    if out.stat().st_size > 1_048_576:
+        canvas.save(OUT_DIR / "entry.jpg", format="JPEG", quality=92)
+        out.unlink()
+        (OUT_DIR / "entry.jpg").rename(OUT_DIR / "entry.png")
 
 
 if __name__ == "__main__":
